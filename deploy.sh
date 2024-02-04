@@ -1,0 +1,1 @@
+gcloud functions deploy philly311 --env-vars-file .env.yaml --entry-point=HandleProcess --runtime=go121 --trigger-topic=philly311_trigger_topic
