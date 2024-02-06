@@ -14,3 +14,9 @@
 .gitignore
 
 node_modules
+
+ss_new.jpg
+ss.png
+out.jpg
+deploy.sh
+README.md

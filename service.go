@@ -177,7 +177,6 @@ func HandleProcess(w http.ResponseWriter, r *http.Request) {
 }
 
 func initInstaClient() error {
-
 	ld, err := importLogin()
 	//not found in db
 	if status.Code(err) == codes.NotFound {
@@ -208,12 +207,19 @@ func postIG(r *Request) error {
 		return err
 	}
 
-	upload := &goinsta.UploadOptions{
-		File: resp.Body,
+	var caption string
+	if r.Description != "" && r.Description != "undefined" {
+		caption = fmt.Sprintf("%s: \"%s\"", r.Title, r.Description)
 	}
 
-	if r.Description != "" && r.Description != "undefined" {
-		upload.Caption = fmt.Sprintf("%s: \"%s\"", r.Title, r.Description)
+	captionedImage, err := ProcessImage(resp.Body, caption)
+	if err != nil {
+		return err
+	}
+
+	upload := &goinsta.UploadOptions{
+		File:    captionedImage,
+		IsStory: true,
 	}
 
 	_, err = insta.Upload(upload)
