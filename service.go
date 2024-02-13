@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,7 +31,8 @@ var (
 )
 
 type LoginData struct {
-	Data string
+	Data          string
+	OriginalLogin time.Time
 }
 
 type ListRequestResponse struct {
@@ -173,31 +175,35 @@ func HandleProcess(w http.ResponseWriter, r *http.Request) {
 		}
 
 	}
-
 }
 
 func initInstaClient() error {
 	ld, err := importLogin()
 	//not found in db
-	if status.Code(err) == codes.NotFound {
-		insta = goinsta.New(os.Getenv("IG_USER"), os.Getenv("IG_PASS"))
-		if err := insta.Login(); err != nil {
+	if status.Code(err) == codes.NotFound || (ld != nil && ld.OriginalLogin.Before(time.Now().Add(-time.Hour*24))) {
+		if err := freshLogin(); err != nil {
 			return err
 		}
-		defer exportLogin(insta)
 	}
-
 	//some other err
 	if err != nil {
 		return err
 	}
 
-	//found, import it
 	insta, err = goinsta.ImportFromBase64String(ld.Data)
 	if err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func freshLogin() error {
+	insta = goinsta.New(os.Getenv("IG_USER"), os.Getenv("IG_PASS"))
+	if err := insta.Login(); err != nil {
+		return err
+	}
+	defer exportLogin(insta)
 	return nil
 }
 
@@ -233,6 +239,17 @@ func postIG(r *Request) error {
 
 func shouldPost(r Request) bool {
 	if r.PrimaryAttachment.Versions.Large == "" {
+		fmt.Fprintln(os.Stderr, "skipping due to no image")
+		return false
+	}
+
+	if r.Description == "" || r.Description == "undefined" {
+		fmt.Fprintln(os.Stderr, "skipping due to no description")
+		return false
+	}
+
+	if strings.Contains(strings.ToLower(r.Title), "graffiti") {
+		fmt.Fprintln(os.Stderr, "skipping due to graffiti")
 		return false
 	}
 
@@ -294,7 +311,7 @@ func exportLogin(insta *goinsta.Instagram) error {
 		return err
 	}
 
-	_, err = client().Collection(LOGIN_COLLECTION).Doc("0").Set(context.Background(), LoginData{Data: b64str})
+	_, err = client().Collection(LOGIN_COLLECTION).Doc("0").Set(context.Background(), LoginData{Data: b64str, OriginalLogin: time.Now()})
 	if err != nil {
 		return err
 	}
