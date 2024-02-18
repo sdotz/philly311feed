@@ -180,7 +180,7 @@ func HandleProcess(w http.ResponseWriter, r *http.Request) {
 func initInstaClient() error {
 	ld, err := importLogin()
 	//not found in db
-	if status.Code(err) == codes.NotFound || (ld != nil && ld.OriginalLogin.Before(time.Now().Add(-time.Hour*24))) {
+	if status.Code(err) == codes.NotFound || (ld != nil && ld.OriginalLogin.Before(time.Now().Add(-time.Hour*12))) {
 		if err := freshLogin(); err != nil {
 			return err
 		}
